@@ -2,49 +2,104 @@ import { io, Socket } from 'socket.io-client';
 import { MarketData, SearchResult, TimeFrame } from '../types';
 
 export class WebSocketService {
+  private static instance: WebSocketService | null = null;
   private socket: Socket | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
   private isConnected = false;
+  private isConnecting = false;
   private subscriptions: Set<string> = new Set();
   private eventListeners: Map<string, Function[]> = new Map();
+  private reconnectTimer: NodeJS.Timeout | null = null;
+  private healthCheckTimer: NodeJS.Timeout | null = null;
 
   constructor() {
-    console.log('🔌 WebSocketService constructor called');
-    console.log('🌍 Environment variables:');
-    console.log('  - REACT_APP_WEBSOCKET_URL:', process.env.REACT_APP_WEBSOCKET_URL);
-    console.log('  - Default URL: http://localhost:5001');
-    this.connect();
+    // Prevent multiple instances in React StrictMode
+    if (WebSocketService.instance) {
+      console.log('🔄 WebSocketService: Returning existing instance');
+      return WebSocketService.instance;
+    }
+    
+    console.log('🚀 WebSocketService: Creating new instance at:', new Date().toLocaleTimeString());
+    WebSocketService.instance = this;
+  }
+
+  public static getInstance(): WebSocketService {
+    if (!WebSocketService.instance) {
+      WebSocketService.instance = new WebSocketService();
+    }
+    return WebSocketService.instance;
+  }
+
+  public ensureConnection(): void {
+    if (!this.socket || !this.isConnected) {
+      console.log('🔌 WebSocketService: Ensuring connection...');
+      this.connect();
+    } else {
+      console.log('✅ WebSocketService: Already connected');
+    }
   }
 
   private connect(): void {
+    if (this.isConnecting || this.isConnected) {
+      console.log('⏳ WebSocketService: Connection already in progress or established');
+      return;
+    }
+
+    this.isConnecting = true;
+    
     try {
       const websocketUrl = process.env.REACT_APP_WEBSOCKET_URL || 'http://localhost:5001';
       console.log('🔌 Attempting WebSocket connection to:', websocketUrl);
+      
+      // Disconnect existing socket if any
+      if (this.socket) {
+        this.socket.disconnect();
+        this.socket = null;
+      }
       
       this.socket = io(websocketUrl, {
         transports: ['websocket', 'polling'],
         upgrade: true,
         rememberUpgrade: true,
         timeout: 20000,
-        forceNew: true,
+        forceNew: false, // Allow connection reuse
+        autoConnect: true,
+        reconnection: true,
+        reconnectionAttempts: 3,
+        reconnectionDelay: 2000,
       });
 
+      console.log('✅ Socket.IO instance created');
       this.setupEventHandlers();
+      this.startHealthCheck();
     } catch (error) {
-      console.error('Failed to connect to WebSocket:', error);
+      console.error('💥 Failed to connect to WebSocket:', error);
+      this.isConnecting = false;
       this.scheduleReconnect();
     }
   }
 
   private setupEventHandlers(): void {
-    if (!this.socket) return;
+    if (!this.socket) {
+      console.error('❌ Cannot setup event handlers: socket is null');
+      return;
+    }
+
+    console.log('🎯 Setting up WebSocket event handlers...');
 
     this.socket.on('connect', () => {
       console.log('✅ Connected to WebSocket server at:', process.env.REACT_APP_WEBSOCKET_URL || 'http://localhost:5001');
       this.isConnected = true;
+      this.isConnecting = false;
       this.reconnectAttempts = 0;
+      
+      // Clear any pending reconnection timer
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
       
       // Authenticate if token is available
       const token = localStorage.getItem('token');
@@ -65,17 +120,22 @@ export class WebSocketService {
     this.socket.on('disconnect', (reason) => {
       console.log('❌ Disconnected from WebSocket server. Reason:', reason);
       this.isConnected = false;
+      this.isConnecting = false;
       this.emit('disconnected', reason);
 
-      if (reason === 'io server disconnect') {
-        // Server initiated disconnect, try to reconnect
+      // Only reconnect for certain disconnect reasons
+      if (reason === 'io server disconnect' || reason === 'transport close' || reason === 'transport error') {
+        console.log('🔄 Scheduling reconnection due to:', reason);
         this.scheduleReconnect();
+      } else {
+        console.log('⏹️ Not reconnecting due to:', reason);
       }
     });
 
     this.socket.on('connect_error', (error) => {
       console.error('❌ WebSocket connection error:', error);
       this.isConnected = false;
+      this.isConnecting = false;
       this.scheduleReconnect();
     });
 
@@ -133,16 +193,23 @@ export class WebSocketService {
 
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('Maximum reconnection attempts reached');
+      console.error('❌ Max reconnection attempts reached. Giving up.');
       this.emit('maxReconnectAttemptsReached');
       return;
     }
 
-    setTimeout(() => {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
+
+    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts); // Exponential backoff
+    console.log(`⏰ Scheduling reconnection attempt ${this.reconnectAttempts + 1}/${this.maxReconnectAttempts} in ${delay}ms`);
+    
+    this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempts++;
-      console.log(`Reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
+      console.log(`🔄 Reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
       this.connect();
-    }, this.reconnectDelay * Math.pow(2, this.reconnectAttempts)); // Exponential backoff
+    }, delay);
   }
 
   authenticate(token: string): void {
@@ -156,36 +223,17 @@ export class WebSocketService {
       this.socket.emit('subscribe', { symbols });
       symbols.forEach(symbol => this.subscriptions.add(symbol));
     } else {
-      // Queue subscriptions for when connected
+      // Store subscriptions for when connection is established
       symbols.forEach(symbol => this.subscriptions.add(symbol));
+      console.log('📝 Stored subscription for later:', symbols);
     }
   }
 
   unsubscribe(symbols: string[]): void {
     if (this.socket && this.isConnected) {
       this.socket.emit('unsubscribe', { symbols });
-      symbols.forEach(symbol => this.subscriptions.delete(symbol));
-    } else {
-      symbols.forEach(symbol => this.subscriptions.delete(symbol));
     }
-  }
-
-  joinPortfolio(portfolioId: string): void {
-    if (this.socket && this.isConnected) {
-      this.socket.emit('joinPortfolio', { portfolioId });
-    }
-  }
-
-  leavePortfolio(portfolioId: string): void {
-    if (this.socket && this.isConnected) {
-      this.socket.emit('leavePortfolio', { portfolioId });
-    }
-  }
-
-  getCandlestickData(symbol: string, timeframe: TimeFrame, limit?: number): void {
-    if (this.socket && this.isConnected) {
-      this.socket.emit('getCandlestickData', { symbol, timeframe, limit });
-    }
+    symbols.forEach(symbol => this.subscriptions.delete(symbol));
   }
 
   searchSymbols(query: string): void {
@@ -194,13 +242,31 @@ export class WebSocketService {
     }
   }
 
-  ping(): void {
+  getCandlestickData(symbol: string, timeframe: TimeFrame): void {
     if (this.socket && this.isConnected) {
-      this.socket.emit('ping');
+      this.socket.emit('getCandlestickData', { symbol, timeframe });
     }
   }
 
-  // Event listener management
+  getPortfolioData(): void {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('getPortfolioData');
+    }
+  }
+
+  createPriceAlert(symbol: string, targetPrice: number, alertType: 'above' | 'below'): void {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('createPriceAlert', { symbol, targetPrice, alertType });
+    }
+  }
+
+  ping(): void {
+    if (this.socket && this.isConnected) {
+      this.socket.emit('ping', { timestamp: Date.now() });
+    }
+  }
+
+  // Event management
   on(event: string, callback: Function): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
@@ -209,52 +275,63 @@ export class WebSocketService {
   }
 
   off(event: string, callback?: Function): void {
-    if (!callback) {
-      this.eventListeners.delete(event);
-      return;
-    }
-
-    const listeners = this.eventListeners.get(event);
-    if (listeners) {
+    if (!this.eventListeners.has(event)) return;
+    
+    if (callback) {
+      const listeners = this.eventListeners.get(event)!;
       const index = listeners.indexOf(callback);
       if (index > -1) {
         listeners.splice(index, 1);
       }
+    } else {
+      this.eventListeners.delete(event);
     }
   }
 
   private emit(event: string, data?: any): void {
-    const listeners = this.eventListeners.get(event);
-    if (listeners) {
-      listeners.forEach(callback => {
+    if (this.eventListeners.has(event)) {
+      this.eventListeners.get(event)!.forEach(callback => {
         try {
           callback(data);
         } catch (error) {
-          console.error(`Error in event listener for ${event}:`, error);
+          console.error('Error in event callback:', error);
         }
       });
     }
   }
 
-  // Connection utilities
-  isSocketConnected(): boolean {
-    return this.isConnected && this.socket?.connected === true;
-  }
-
   disconnect(): void {
+    console.log('🔌 Disconnecting WebSocket service...');
+    
+    // Clear timers
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = null;
+    }
+    
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
     this.isConnected = false;
+    this.isConnecting = false;
     this.subscriptions.clear();
     this.eventListeners.clear();
   }
 
   // Health check
-  startHealthCheck(): void {
-    setInterval(() => {
-      if (this.isConnected) {
+  private startHealthCheck(): void {
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer);
+    }
+    
+    this.healthCheckTimer = setInterval(() => {
+      if (this.isConnected && this.socket) {
         this.ping();
       }
     }, 30000); // Ping every 30 seconds
@@ -274,4 +351,4 @@ export class WebSocketService {
 }
 
 // Singleton instance
-export const websocketService = new WebSocketService();
+export const websocketService = WebSocketService.getInstance();

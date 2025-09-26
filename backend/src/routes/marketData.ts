@@ -151,4 +151,40 @@ router.get('/status', (req, res) => {
   }
 });
 
+// Get historical candlestick data for charting
+router.get('/bars/:symbol', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const { timeframe = '1Day', start, end, limit = 100 } = req.query;
+    
+    // Validate parameters
+    const validTimeframes = ['1Min', '5Min', '15Min', '1Hour', '1Day'];
+    if (!validTimeframes.includes(timeframe as string)) {
+      return res.status(400).json({ 
+        message: `Invalid timeframe. Valid options: ${validTimeframes.join(', ')}` 
+      });
+    }
+
+    const bars = await marketDataService.getBars(
+      symbol, 
+      timeframe as string, 
+      start as string, 
+      end as string, 
+      parseInt(limit as string)
+    );
+
+    res.json({ 
+      symbol,
+      timeframe,
+      bars: bars || []
+    });
+  } catch (error) {
+    console.error(`Get bars error for ${req.params.symbol}:`, error);
+    res.status(500).json({ 
+      message: 'Error fetching historical data',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export { router as marketDataRouter };

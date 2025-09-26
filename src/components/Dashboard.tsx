@@ -9,8 +9,9 @@ import {
 } from '@heroicons/react/24/outline';
 import { useMarketStore } from '../stores/marketStore';
 import { useMarketData } from '../hooks/useMarketData';
-import { formatCurrency, formatPercentage } from '../utils/formatters';
+import { formatCurrency, formatPercentage, formatTimeAgo } from '../utils/formatters';
 import { MarketTrend } from './charts/MarketTrend';
+import LoadingSpinner from './common/LoadingSpinner';
 
 interface StatCardProps {
   title: string;
@@ -19,9 +20,10 @@ interface StatCardProps {
   changeValue?: string;
   icon: React.ComponentType<any>;
   color?: 'green' | 'red' | 'blue' | 'purple';
+  lastUpdated?: Date | string;
 }
 
-function StatCard({ title, value, change, changeValue, icon: Icon, color = 'blue' }: StatCardProps) {
+function StatCard({ title, value, change, changeValue, icon: Icon, color = 'blue', lastUpdated }: StatCardProps) {
   const isPositive = change >= 0;
   const colorClasses = {
     green: 'from-green-500 to-green-600',
@@ -33,8 +35,15 @@ function StatCard({ title, value, change, changeValue, icon: Icon, color = 'blue
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
+            {lastUpdated && (
+              <span className="text-xs text-gray-500 dark:text-gray-500">
+                {formatTimeAgo(lastUpdated)}
+              </span>
+            )}
+          </div>
           <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{value}</p>
           <div className="flex items-center mt-2">
             {isPositive ? (
@@ -67,9 +76,10 @@ interface MarketItemProps {
   change: number;
   changePercent: number;
   volume?: string;
+  timestamp?: Date | string;
 }
 
-function MarketItem({ symbol, name, price, change, changePercent }: MarketItemProps) {
+function MarketItem({ symbol, name, price, change, changePercent, timestamp }: MarketItemProps) {
   const isPositive = change >= 0;
 
   return (
@@ -79,7 +89,14 @@ function MarketItem({ symbol, name, price, change, changePercent }: MarketItemPr
           {symbol.charAt(0)}
         </div>
         <div className="ml-3">
-          <p className="text-sm font-medium text-gray-900 dark:text-white">{symbol}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-gray-900 dark:text-white">{symbol}</p>
+            {timestamp && (
+              <span className="text-xs text-gray-400 dark:text-gray-500">
+                • {formatTimeAgo(timestamp)}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-gray-500 dark:text-gray-400">{name}</p>
         </div>
       </div>
@@ -107,7 +124,7 @@ function MarketItem({ symbol, name, price, change, changePercent }: MarketItemPr
 }
 
 export default function Dashboard() {
-  const { isConnected, getAllMarketData } = useMarketStore();
+  const { isConnected, getAllMarketData, lastUpdated } = useMarketStore();
   // Initialize market data hook for WebSocket connection
   useMarketData();
   const [timeRange, setTimeRange] = useState('1D');
@@ -146,7 +163,8 @@ export default function Dashboard() {
     price: data.price,
     change: data.change,
     changePercent: data.changePercent,
-    volume: data.volume?.toString() || '0'
+    volume: data.volume?.toString() || '0',
+    timestamp: data.timestamp
   }));
 
   const timeRanges = ['1D', '1W', '1M', '3M', '6M', '1Y'];
@@ -218,6 +236,7 @@ export default function Dashboard() {
           changeValue={hasLiveData ? 'Connected' : 'Disconnected'}
           icon={CurrencyDollarIcon}
           color={hasLiveData ? 'green' : 'red'}
+          lastUpdated={displayData.length > 0 ? displayData[0].timestamp : undefined}
         />
         <StatCard
           title="Alpaca Connection"
@@ -239,6 +258,7 @@ export default function Dashboard() {
           change={hasLiveData ? 100 : 0}
           icon={EyeIcon}
           color={hasLiveData ? 'blue' : 'red'}
+          lastUpdated={lastUpdated || undefined}
         />
       </div>
 

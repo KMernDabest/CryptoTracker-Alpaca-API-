@@ -12,6 +12,7 @@ import AuthPage from './components/AuthPage';
 // Import page components
 import Portfolio from './pages/Portfolio';
 import Watchlist from './pages/Watchlist';
+import Markets from './pages/Markets';
 import Alerts from './pages/Alerts';
 
 // Protected Route Component
@@ -127,16 +128,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <div className="p-6">
-                    <div className="text-center">
-                      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                        Markets
-                      </h1>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Market data and analysis coming soon...
-                      </p>
-                    </div>
-                  </div>
+                  <Markets />
                 </Layout>
               </ProtectedRoute>
             }

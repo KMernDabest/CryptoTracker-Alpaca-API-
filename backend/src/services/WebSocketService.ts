@@ -147,7 +147,9 @@ export class WebSocketService {
 
       // Handle disconnection
       socket.on('disconnect', (reason) => {
-        console.log(`Client disconnected: ${socket.id} - ${reason}`);
+        console.log(`🔥 CLIENT DISCONNECTED: ${socket.id} - Reason: ${reason}`);
+        console.log(`📊 Client had ${client.subscribedSymbols.size} subscriptions:`, Array.from(client.subscribedSymbols));
+        console.log(`📈 Remaining clients after disconnect: ${this.clients.size - 1}`);
         this.handleClientDisconnection(socket.id);
       });
 

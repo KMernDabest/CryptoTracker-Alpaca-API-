@@ -13,12 +13,15 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { useMarketStore } from '../stores/marketStore';
+import { useMarketData } from '../hooks/useMarketData';
 import { formatCurrency, formatPercentage, formatTimeAgo } from '../utils/formatters';
 import { 
   MagnifyingGlassIcon,
   ArrowUpIcon,
   ArrowDownIcon,
   ClockIcon,
+  ChartBarIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 
 // Register Chart.js components
@@ -47,6 +50,16 @@ interface SymbolOption {
   symbol: string;
   name: string;
   type: 'stock' | 'crypto';
+  currentPrice?: number;
+  change?: number;
+  changePercent?: number;
+  lastUpdated?: Date;
+}
+
+interface WatchlistItemProps {
+  symbol: SymbolOption;
+  isSelected: boolean;
+  onClick: () => void;
 }
 
 const AVAILABLE_SYMBOLS: SymbolOption[] = [
@@ -72,6 +85,68 @@ const TIME_RANGES = [
   { label: '1Y', value: '1Y' },
 ];
 
+// WatchlistItem Component
+const WatchlistItem: React.FC<WatchlistItemProps> = ({ symbol, isSelected, onClick }) => {
+  const { getAllMarketData } = useMarketStore();
+  const marketData = getAllMarketData().find(data => data.symbol === symbol.symbol);
+  
+  const price = marketData?.price || symbol.currentPrice || 0;
+  const change = marketData?.change || symbol.change || 0;
+  const changePercent = marketData?.changePercent || symbol.changePercent || 0;
+  const lastUpdated = marketData?.timestamp || symbol.lastUpdated || new Date();
+  
+  const isPositive = change >= 0;
+  const changeColor = isPositive ? 'text-green-500' : 'text-red-500';
+  const bgColor = isSelected 
+    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' 
+    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750';
+  
+  return (
+    <div
+      onClick={onClick}
+      className={`p-3 border rounded-lg cursor-pointer transition-all duration-200 ${bgColor}`}
+    >
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
+            {symbol.symbol}
+          </h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+            {symbol.name}
+          </p>
+        </div>
+        <div className="text-right">
+          <div className="font-semibold text-sm text-gray-900 dark:text-white">
+            {formatCurrency(price)}
+          </div>
+          <div className={`text-xs font-medium flex items-center ${changeColor}`}>
+            {isPositive ? (
+              <ArrowUpIcon className="w-3 h-3 mr-1" />
+            ) : (
+              <ArrowDownIcon className="w-3 h-3 mr-1" />
+            )}
+            {formatCurrency(Math.abs(change))} ({formatPercentage(changePercent)})
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+          symbol.type === 'crypto' 
+            ? 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-300'
+            : 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300'
+        }`}>
+          {symbol.type === 'crypto' ? 'CRYPTO' : 'STOCK'}
+        </span>
+        <span className="flex items-center">
+          <ClockIcon className="w-3 h-3 mr-1" />
+          {formatTimeAgo(lastUpdated)}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 export default function Markets() {
   const [selectedSymbol, setSelectedSymbol] = useState<SymbolOption>(AVAILABLE_SYMBOLS[0]);
   const [selectedTimeRange, setSelectedTimeRange] = useState('1D');
@@ -79,6 +154,9 @@ export default function Markets() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { getAllMarketData, isConnected } = useMarketStore();
+  
+  // Initialize real-time market data connection
+  useMarketData();
   
   // Chart reference for proper cleanup
   const chartRef = useRef<any>(null);
@@ -351,214 +429,140 @@ export default function Markets() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          Markets
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Real-time market analysis and price charts
-        </p>
-      </div>
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Left Sidebar - Watchlist */}
+      <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Watchlist
+            </h2>
+            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+              isConnected 
+                ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300'
+                : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
+            }`}>
+              <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+              }`} />
+              {isConnected ? 'LIVE' : 'OFFLINE'}
+            </div>
+          </div>
+          
+          {/* Search */}
+          <div className="relative">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search symbols..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+            />
+          </div>
+        </div>
 
-      {/* Connection Status */}
-      <div className="mb-6">
-        <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-          isConnected 
-            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-        }`}>
-          <div className={`w-2 h-2 rounded-full mr-2 ${
-            isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
-          }`} />
-          {isConnected ? 'Live Data Connected' : 'Disconnected'}
+        {/* Watchlist Items */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="space-y-2">
+            {filteredSymbols.map((symbol) => (
+              <WatchlistItem
+                key={symbol.symbol}
+                symbol={symbol}
+                isSelected={selectedSymbol.symbol === symbol.symbol}
+                onClick={() => setSelectedSymbol(symbol)}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Symbol Selection Sidebar */}
-        <div className="lg:col-span-1">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Select Symbol
-            </h3>
-            
-            {/* Search */}
-            <div className="relative mb-4">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search symbols..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Top Bar with Symbol Info and Time Range */}
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center justify-between">
+            {/* Selected Symbol Info */}
+            <div className="flex items-center space-x-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {selectedSymbol.name} ({selectedSymbol.symbol})
+                </h1>
+                <div className="flex items-center space-x-4 mt-1">
+                  {currentMarketData && (
+                    <>
+                      <span className="text-2xl font-semibold text-gray-900 dark:text-white">
+                        {formatCurrency(currentMarketData.price)}
+                      </span>
+                      <div className={`flex items-center text-lg font-medium ${
+                        currentMarketData.change >= 0 ? 'text-green-500' : 'text-red-500'
+                      }`}>
+                        {currentMarketData.change >= 0 ? (
+                          <ArrowUpIcon className="w-4 h-4 mr-1" />
+                        ) : (
+                          <ArrowDownIcon className="w-4 h-4 mr-1" />
+                        )}
+                        {formatCurrency(Math.abs(currentMarketData.change))} ({formatPercentage(currentMarketData.changePercent)})
+                      </div>
+                      <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                        <ClockIcon className="w-4 h-4 mr-1" />
+                        {formatTimeAgo(currentMarketData.timestamp)}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Symbol List */}
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {filteredSymbols.map((symbol) => {
-                const marketData = getAllMarketData().find(data => data.symbol === symbol.symbol);
-                const isSelected = selectedSymbol.symbol === symbol.symbol;
-                
-                return (
-                  <button
-                    key={symbol.symbol}
-                    onClick={() => setSelectedSymbol(symbol)}
-                    className={`w-full p-3 text-left rounded-lg transition-colors ${
-                      isSelected
-                        ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700'
-                        : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            symbol.type === 'crypto' 
-                              ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
-                              : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                          }`}>
-                            {symbol.type.toUpperCase()}
-                          </span>
-                          <span className="font-semibold text-gray-900 dark:text-white">
-                            {symbol.symbol}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                          {symbol.name}
-                        </p>
-                      </div>
-                      {marketData && (
-                        <div className="text-right">
-                          <div className="font-semibold text-gray-900 dark:text-white">
-                            {formatCurrency(marketData.price)}
-                          </div>
-                          <div className={`text-sm font-medium flex items-center ${
-                            marketData.changePercent >= 0 ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {marketData.changePercent >= 0 ? (
-                              <ArrowUpIcon className="h-3 w-3 mr-1" />
-                            ) : (
-                              <ArrowDownIcon className="h-3 w-3 mr-1" />
-                            )}
-                            {formatPercentage(Math.abs(marketData.changePercent))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
+            {/* Time Range Selector */}
+            <div className="flex items-center space-x-2">
+              {TIME_RANGES.map((range) => (
+                <button
+                  key={range.value}
+                  onClick={() => setSelectedTimeRange(range.value)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    selectedTimeRange === range.value
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {range.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Main Chart Area */}
-        <div className="lg:col-span-3">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            {/* Chart Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-              <div className="mb-4 sm:mb-0">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {selectedSymbol.name} ({selectedSymbol.symbol})
-                </h2>
-                {currentMarketData && (
-                  <div className="flex items-center gap-4 mt-2">
-                    <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {formatCurrency(currentMarketData.price)}
-                    </span>
-                    <span className={`flex items-center text-sm font-medium ${
-                      currentMarketData.changePercent >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {currentMarketData.changePercent >= 0 ? (
-                        <ArrowUpIcon className="h-4 w-4 mr-1" />
-                      ) : (
-                        <ArrowDownIcon className="h-4 w-4 mr-1" />
-                      )}
-                      {formatCurrency(Math.abs(currentMarketData.change))} 
-                      ({formatPercentage(Math.abs(currentMarketData.changePercent))})
-                    </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                      <ClockIcon className="h-3 w-3 mr-1" />
-                      {formatTimeAgo(currentMarketData.timestamp)}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Time Range Selector */}
-              <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                {TIME_RANGES.map((range) => (
-                  <button
-                    key={range.value}
-                    onClick={() => setSelectedTimeRange(range.value)}
-                    className={`px-3 py-1 text-sm font-medium rounded transition-colors ${
-                      selectedTimeRange === range.value
-                        ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                  >
-                    {range.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Chart */}
-            <div className="relative h-[500px] bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              {isLoading ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        {/* Chart Area */}
+        <div className="flex-1 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 h-full">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <ChartBarIcon className="w-16 h-16 text-gray-400 mx-auto mb-4 animate-pulse" />
+                  <p className="text-gray-500 dark:text-gray-400">Loading chart data...</p>
                 </div>
-              ) : candlestickData.length === 0 ? (
-                <div className="absolute inset-0 flex items-center justify-center">
+              </div>
+            ) : candlestickData.length > 0 ? (
+              <div className="p-6 h-full">
+                <Line 
+                  ref={chartRef}
+                  data={chartData} 
+                  options={{
+                    ...chartOptions,
+                    maintainAspectRatio: false,
+                    responsive: true,
+                  }} 
+                />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <EyeIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500 dark:text-gray-400">No chart data available</p>
-                </div>
-              ) : (
-                <div className="p-4 h-full">
-                  <Line
-                    ref={(chart: any) => {
-                      if (chart && chart.chartInstance) {
-                        chartRef.current = chart.chartInstance;
-                      } else if (chart) {
-                        chartRef.current = chart;
-                      }
-                    }}
-                    data={chartData}
-                    options={chartOptions}
-                    key={`${selectedSymbol.symbol}-${selectedTimeRange}-${candlestickData.length}`}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Chart Stats */}
-            {candlestickData.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <div className="text-center">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Period High</p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {formatCurrency(Math.max(...candlestickData.map(d => d.high)))}
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Period Low</p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {formatCurrency(Math.min(...candlestickData.map(d => d.low)))}
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Avg Volume</p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {Math.floor(candlestickData.reduce((sum, d) => sum + d.volume, 0) / candlestickData.length).toLocaleString()}
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Data Points</p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {candlestickData.length}
+                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+                    Select a symbol to view price charts
                   </p>
                 </div>
               </div>

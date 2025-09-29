@@ -60,15 +60,16 @@ export class WebSocketService {
       }
       
       this.socket = io(websocketUrl, {
-        transports: ['websocket', 'polling'],
-        upgrade: true,
-        rememberUpgrade: true,
-        timeout: 20000,
+        transports: ['websocket'], // Use WebSocket only for optimal performance
+        upgrade: false, // Disable upgrade for consistency
+        rememberUpgrade: false,
+        timeout: 5000, // Balanced 5s connection timeout
         forceNew: false, // Allow connection reuse
         autoConnect: true,
         reconnection: true,
-        reconnectionAttempts: 3,
-        reconnectionDelay: 2000,
+        reconnectionAttempts: 10, // Reasonable attempts for reliability
+        reconnectionDelay: 1000, // Balanced 1s reconnection delay
+        randomizationFactor: 0.2, // Balanced jitter to avoid thundering herd
       });
 
       console.log('✅ Socket.IO instance created');
@@ -144,7 +145,7 @@ export class WebSocketService {
     });
 
     this.socket.on('priceUpdate', (data: MarketData) => {
-      console.log(`💹 Frontend received price update for ${data.symbol}: $${data.price}`);
+      // Ultra-fast processing with minimal logging for maximum performance
       this.emit('priceUpdate', data);
     });
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ArrowUpIcon,
   ArrowDownIcon,
@@ -11,7 +11,8 @@ import { useMarketStore } from '../stores/marketStore';
 import { useMarketData } from '../hooks/useMarketData';
 import { formatCurrency, formatPercentage, formatTimeAgo } from '../utils/formatters';
 import { MarketTrend } from './charts/MarketTrend';
-import LoadingSpinner from './common/LoadingSpinner';
+
+
 
 interface StatCardProps {
   title: string;
@@ -55,6 +56,7 @@ function StatCard({ title, value, change, changeValue, icon: Icon, color = 'blue
               className={`text-sm font-medium ${
                 isPositive ? 'text-green-600' : 'text-red-600'
               }`}
+              title="1 Minute Change"
             >
               {formatPercentage(Math.abs(change))}
               {changeValue && ` (${changeValue})`}
@@ -69,55 +71,50 @@ function StatCard({ title, value, change, changeValue, icon: Icon, color = 'blue
   );
 }
 
-interface MarketItemProps {
+interface MarketCategoryItemProps {
   symbol: string;
-  name: string;
-  price: number;
+  lastPrice: number;
   change: number;
   changePercent: number;
-  volume?: string;
-  timestamp?: Date | string;
+  icon?: string;
 }
 
-function MarketItem({ symbol, name, price, change, changePercent, timestamp }: MarketItemProps) {
+function MarketCategoryItem({ symbol, lastPrice, change, changePercent, icon }: MarketCategoryItemProps) {
   const isPositive = change >= 0;
-
+  
   return (
-    <div className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
-      <div className="flex items-center">
-        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-          {symbol.charAt(0)}
-        </div>
-        <div className="ml-3">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-gray-900 dark:text-white">{symbol}</p>
-            {timestamp && (
-              <span className="text-xs text-gray-400 dark:text-gray-500">
-                • {formatTimeAgo(timestamp)}
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">{name}</p>
-        </div>
+    <div className="grid grid-cols-4 items-center py-3 px-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors min-w-0 gap-2">
+      {/* Symbol Column */}
+      <div className="flex items-center space-x-2 min-w-0 overflow-hidden">
+        {icon && <span className="text-sm flex-shrink-0">{icon}</span>}
+        <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
+          {symbol}
+        </span>
       </div>
-      <div className="text-right">
-        <p className="text-sm font-medium text-gray-900 dark:text-white">
-          {formatCurrency(price)}
-        </p>
-        <div className="flex items-center justify-end">
-          {isPositive ? (
-            <ArrowUpIcon className="h-3 w-3 text-green-500 mr-1" />
-          ) : (
-            <ArrowDownIcon className="h-3 w-3 text-red-500 mr-1" />
-          )}
-          <span
-            className={`text-xs font-medium ${
-              isPositive ? 'text-green-600' : 'text-red-600'
-            }`}
-          >
-            {formatPercentage(Math.abs(changePercent))}
-          </span>
-        </div>
+      
+      {/* Last Price Column */}
+      <div className="text-right min-w-0 overflow-hidden">
+        <span className="text-sm font-medium text-gray-900 dark:text-white truncate block">
+          {formatCurrency(lastPrice)}
+        </span>
+      </div>
+      
+      {/* Change Amount Column */}
+      <div className="text-right min-w-0 overflow-hidden">
+        <span className={`text-sm font-medium truncate block ${
+          isPositive ? 'text-green-500' : 'text-red-500'
+        }`}>
+          {isPositive ? '+' : ''}{change.toFixed(2)}
+        </span>
+      </div>
+      
+      {/* Change Percent Column */}
+      <div className="text-right min-w-0 overflow-hidden">
+        <span className={`text-sm font-medium truncate block ${
+          isPositive ? 'text-green-500' : 'text-red-500'
+        }`} title="1 Hour Change">
+          {formatPercentage(changePercent)}
+        </span>
       </div>
     </div>
   );
@@ -128,27 +125,126 @@ export default function Dashboard() {
   // Initialize market data hook for WebSocket connection
   useMarketData();
   const [timeRange, setTimeRange] = useState('1D');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Optimized auto-refresh every 1 second for smooth all-symbol display
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRefreshTrigger(prev => prev + 1);
+    }, 1000); // 1 second refresh for efficient all-symbol updates
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Get live market data from Alpaca
   const liveMarketData = getAllMarketData();
   const hasLiveData = liveMarketData.length > 0;
 
-  // Real portfolio data will be implemented when needed
+  // Organize market data by categories
+  const marketCategories = {
+    STOCKS: {
+      'Tech Giants': ['AAPL', 'GOOGL', 'MSFT', 'META', 'NVDA', 'AMD'],
+      'Growth & Media': ['TSLA', 'AMZN', 'NFLX', 'DIS', 'PYPL', 'ADBE'],
+      'Enterprise': ['CRM', 'ORCL', 'INTC', 'IBM'],
+      'Financial': ['JPM', 'BAC', 'GS', 'MS', 'WFC', 'V', 'MA']
+    },
+    INDICES: {
+      'Major ETFs': ['SPY', 'QQQ', 'IWM'],
+      'Broad Market': ['VTI', 'VOO', 'VEA', 'VWO']
+    },
+    CRYPTO: {
+      'Major': ['BTC/USD', 'ETH/USD'],
+      'Altcoins': ['LTC/USD', 'BCH/USD', 'LINK/USD', 'UNI/USD'],
+      'DeFi': ['AAVE/USD', 'ALGO/USD', 'DOT/USD', 'DOGE/USD']
+    },
+    FOREX: {
+      'Major Pairs': ['EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF'],
+      'Commodity Pairs': ['AUD/USD', 'USD/CAD', 'NZD/USD'],
+      'Cross Pairs': ['EUR/GBP', 'EUR/JPY', 'GBP/JPY']
+    }
+  };
+  
+  // Create market data map for quick lookup
+  const marketDataMap = new Map();
+  liveMarketData.forEach(data => {
+    marketDataMap.set(data.symbol, {
+      symbol: data.symbol,
+      lastPrice: data.price,
+      change: data.change,
+      changePercent: data.changePercent,
+      icon: getSymbolIcon(data.symbol)
+    });
+  });
+  
+  function getSymbolIcon(symbol: string): string {
+    // Crypto icons
+    if (symbol === 'BTC/USD') return '₿';
+    if (symbol === 'ETH/USD') return 'Ξ';
+    if (symbol.includes('/USD')) return '🪙';
+    
+    // Stock icons
+    const stockIcons: Record<string, string> = {
+      'AAPL': '🍎', 'GOOGL': '🔍', 'MSFT': '🟦', 'META': '📘',
+      'NVDA': '🎮', 'AMD': '🔥', 'TSLA': '🚗', 'AMZN': '📦',
+      'NFLX': '🎬', 'DIS': '🏰', 'PYPL': '💰', 'ADBE': '🎨',
+      'CRM': '☁️', 'ORCL': '🗃️', 'INTC': '💾', 'IBM': '🏢',
+      'JPM': '🏛️', 'BAC': '🏦', 'GS': '💎', 'MS': '📊',
+      'WFC': '🌎', 'V': '💳', 'MA': '💎',
+      'SPY': '🕷️', 'QQQ': '💻', 'IWM': '🏭',
+      'VTI': '📈', 'VOO': '🏢', 'VEA': '🌍', 'VWO': '🌏'
+    };
+    return stockIcons[symbol] || '📈';
+  }
 
   // Symbol name mapping for display
   const symbolNames: { [key: string]: string } = {
+    // Major Stocks
     'AAPL': 'Apple Inc.',
     'GOOGL': 'Alphabet Inc.',
     'MSFT': 'Microsoft Corp.',
     'TSLA': 'Tesla Inc.',
     'AMZN': 'Amazon.com Inc.',
+    'META': 'Meta Platforms Inc.',
+    'NVDA': 'NVIDIA Corp.',
+    'AMD': 'Advanced Micro Devices',
+    'NFLX': 'Netflix Inc.',
+    'DIS': 'Walt Disney Co.',
+    'PYPL': 'PayPal Holdings',
+    'ADBE': 'Adobe Inc.',
+    'CRM': 'Salesforce Inc.',
+    'ORCL': 'Oracle Corp.',
+    'INTC': 'Intel Corp.',
+    'IBM': 'IBM Corp.',
+    // Financial Stocks
+    'JPM': 'JPMorgan Chase',
+    'BAC': 'Bank of America',
+    'GS': 'Goldman Sachs',
+    'MS': 'Morgan Stanley',
+    'WFC': 'Wells Fargo',
+    'V': 'Visa Inc.',
+    'MA': 'Mastercard Inc.',
+    // ETFs and Indices
+    'SPY': 'SPDR S&P 500 ETF',
+    'QQQ': 'Invesco QQQ Trust',
+    'IWM': 'iShares Russell 2000',
+    'VTI': 'Vanguard Total Stock Market',
+    'VOO': 'Vanguard S&P 500 ETF',
+    'VEA': 'Vanguard FTSE Developed Markets',
+    'VWO': 'Vanguard Emerging Markets',
+    // Cryptocurrencies
     'BTC/USD': 'Bitcoin',
     'ETH/USD': 'Ethereum',
-    'SOL/USD': 'Solana',
-    'ADA/USD': 'Cardano',
-    'NVDA': 'NVIDIA Corp.',
-    'META': 'Meta Platforms Inc.'
+    'LTC/USD': 'Litecoin',
+    'BCH/USD': 'Bitcoin Cash',
+    'LINK/USD': 'Chainlink',
+    'UNI/USD': 'Uniswap',
+    'AAVE/USD': 'Aave',
+    'ALGO/USD': 'Algorand',
+    'DOT/USD': 'Polkadot',
+    'DOGE/USD': 'Dogecoin'
   };
+
+
 
   // Debug information
   console.log('🎯 Dashboard render - isConnected:', isConnected, 'hasLiveData:', hasLiveData, 'liveMarketData count:', liveMarketData.length);
@@ -156,36 +252,80 @@ export default function Dashboard() {
     console.log(`📈 Live data: ${data.symbol} = $${data.price} (${data.changePercent > 0 ? '+' : ''}${data.changePercent.toFixed(2)}%)`);
   });
 
-  // Use only real-time Alpaca data
-  const displayData = liveMarketData.slice(0, 8).map(data => ({
-    symbol: data.symbol,
-    name: symbolNames[data.symbol] || data.symbol,
-    price: data.price,
-    change: data.change,
-    changePercent: data.changePercent,
-    volume: data.volume?.toString() || '0',
-    timestamp: data.timestamp
-  }));
+  // Use only real-time Alpaca data - show all available data
+  const displayData = useMemo(() => {
+    return liveMarketData.map(data => ({
+      symbol: data.symbol,
+      name: symbolNames[data.symbol] || data.symbol,
+      price: data.price,
+      change: data.change,
+      changePercent: data.changePercent,
+      volume: data.volume?.toString() || '0',
+      timestamp: data.timestamp,
+      icon: // Same icon mapping as realTimeMarketItems
+            data.symbol === 'BTC/USD' ? '₿' :
+            data.symbol === 'ETH/USD' ? 'Ξ' :
+            data.symbol === 'LTC/USD' ? 'Ł' :
+            data.symbol === 'BCH/USD' ? '₿' :
+            data.symbol === 'LINK/USD' ? '🔗' :
+            data.symbol === 'UNI/USD' ? '🦄' :
+            data.symbol === 'AAVE/USD' ? '👻' :
+            data.symbol === 'ALGO/USD' ? '⚪' :
+            data.symbol === 'DOT/USD' ? '🔴' :
+            data.symbol === 'DOGE/USD' ? '🐕' :
+            data.symbol === 'AAPL' ? '🍎' :
+            data.symbol === 'GOOGL' ? '🔍' :
+            data.symbol === 'MSFT' ? '💻' :
+            data.symbol === 'TSLA' ? '🚗' :
+            data.symbol === 'AMZN' ? '📦' :
+            data.symbol === 'META' ? '👥' :
+            data.symbol === 'NVDA' ? '💚' :
+            data.symbol === 'AMD' ? '🔴' :
+            data.symbol === 'NFLX' ? '🎬' :
+            data.symbol === 'DIS' ? '🏰' :
+            data.symbol === 'PYPL' ? '💳' :
+            data.symbol === 'ADBE' ? '🎨' :
+            data.symbol === 'CRM' ? '☁️' :
+            data.symbol === 'ORCL' ? '🏛️' :
+            data.symbol === 'INTC' ? '🔲' :
+            data.symbol === 'IBM' ? '🔵' :
+            data.symbol === 'JPM' ? '🏦' :
+            data.symbol === 'BAC' ? '🏛️' :
+            data.symbol === 'GS' ? '💰' :
+            data.symbol === 'MS' ? '📊' :
+            data.symbol === 'WFC' ? '🌎' :
+            data.symbol === 'V' ? '💳' :
+            data.symbol === 'MA' ? '💎' :
+            data.symbol === 'SPY' ? '🕷️' :
+            data.symbol === 'QQQ' ? '💻' :
+            data.symbol === 'IWM' ? '🏭' :
+            data.symbol === 'VTI' ? '📈' :
+            data.symbol === 'VOO' ? '🏢' :
+            data.symbol === 'VEA' ? '🌍' :
+            data.symbol === 'VWO' ? '🌏' : '📈'
+    }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveMarketData, refreshTrigger, symbolNames]);
 
   const timeRanges = ['1D', '1W', '1M', '3M', '6M', '1Y'];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 max-w-full overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
           <p className="text-gray-600 dark:text-gray-400">
             Welcome back! Here's your portfolio overview.
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+        <div className="flex items-center space-x-2 flex-shrink-0">
+          <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 overflow-x-auto">
             {timeRanges.map((range) => (
               <button
                 key={range}
                 onClick={() => setTimeRange(range)}
-                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors whitespace-nowrap flex-shrink-0 ${
                   timeRange === range
                     ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -208,15 +348,15 @@ export default function Dashboard() {
 
       {/* Debug Panel */}
       <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 text-xs font-mono">
-        <h3 className="font-bold mb-2">🔍 Debug Information</h3>
-        <div className="space-y-1">
-          <div>Connection Status: <span className={isConnected ? 'text-green-600' : 'text-red-600'}>{isConnected ? 'Connected ✅' : 'Disconnected ❌'}</span></div>
-          <div>Live Data Count: <span className="text-blue-600">{liveMarketData.length}</span></div>
-          <div>Display Data Count: <span className="text-purple-600">{displayData.length}</span></div>
-          <div>Timestamp: <span className="text-gray-600">{new Date().toLocaleTimeString()}</span></div>
+        <h3 className="font-bold mb-2 text-gray-900 dark:text-white">🔍 Debug Information</h3>
+        <div className="space-y-1 text-gray-700 dark:text-gray-300">
+          <div>Connection Status: <span className={isConnected ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>{isConnected ? 'Connected ✅' : 'Disconnected ❌'}</span></div>
+          <div>Live Data Count: <span className="text-blue-600 dark:text-blue-400">{liveMarketData.length}</span></div>
+          <div>Display Data Count: <span className="text-purple-600 dark:text-purple-400">{displayData.length}</span></div>
+          <div>Timestamp: <span className="text-gray-600 dark:text-gray-400">{new Date().toLocaleTimeString()}</span></div>
           {liveMarketData.length > 0 && (
             <div className="mt-2">
-              <div className="font-semibold">Sample Live Data:</div>
+              <div className="font-semibold text-gray-900 dark:text-white">Sample Live Data:</div>
               {liveMarketData.slice(0, 3).map(data => (
                 <div key={data.symbol} className="text-gray-700 dark:text-gray-300">
                   {data.symbol}: ${data.price} ({data.changePercent > 0 ? '+' : ''}{data.changePercent.toFixed(2)}%)
@@ -262,10 +402,10 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Charts and Market Data */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-w-0">
         {/* Portfolio Chart */}
-        <div className="lg:col-span-2">
+        <div className="min-w-0">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -294,93 +434,135 @@ export default function Dashboard() {
 
         {/* Market Trend */}
         <MarketTrend />
-
-        {/* Top Movers */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Top Movers
-            </h2>
-            <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-              View All
-            </button>
-          </div>
-          
-          <div className="space-y-2">
-            {displayData.length > 0 ? (
-              displayData.map((item) => (
-                <MarketItem key={item.symbol} {...item} />
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                <div className="animate-pulse">
-                  <div className="text-lg mb-2">📡 Connecting to Alpaca Markets</div>
-                  <div className="text-sm">Waiting for real-time market data...</div>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          {/* Live data status */}
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-            <div className="flex items-center justify-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${hasLiveData ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {hasLiveData ? (
-                  <>🔴 Live from Alpaca Markets • {displayData.length} symbols</>
-                ) : (
-                  <>⏳ Establishing Alpaca connection...</>
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Recent Activity
-          </h2>
-          <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-            View All
-          </button>
+      {/* Full Width Live Market Data */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Live Market Data
+            </h2>
+            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+              isConnected 
+                ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300'
+                : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
+            }`}>
+              <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+              }`} />
+              {isConnected ? 'LIVE' : 'OFFLINE'}
+            </div>
+          </div>
+          
+          {/* Column Headers */}
+          <div className="grid grid-cols-4 items-center mt-3 px-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide min-w-0 gap-2">
+            <span className="truncate">Symbol</span>
+            <span className="text-right truncate">Last</span>
+            <span className="text-right truncate">Chg</span>
+            <span className="text-right truncate">Chg%</span>
+          </div>
         </div>
-        
-        <div className="space-y-4">
-          {[
-            { action: 'Buy', symbol: 'BTC', amount: '0.1234', price: '$43,567', time: '2 minutes ago', type: 'buy' },
-            { action: 'Sell', symbol: 'ETH', amount: '2.456', price: '$2,687', time: '1 hour ago', type: 'sell' },
-            { action: 'Alert', symbol: 'AAPL', amount: 'Price Alert Triggered', price: '$184.92', time: '3 hours ago', type: 'alert' }
-          ].map((activity, index) => (
-            <div key={index} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <div className="flex items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${
-                  activity.type === 'buy' ? 'bg-green-500' :
-                  activity.type === 'sell' ? 'bg-red-500' : 'bg-blue-500'
-                }`}>
-                  {activity.symbol.charAt(0)}
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {activity.action} {activity.symbol}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {activity.amount}
-                  </p>
-                </div>
+
+        {/* Categorized Market Data */}
+        <div className="p-4">
+          {liveMarketData.length > 0 ? (
+            <div className="space-y-6">
+              {/* STOCKS Category */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center">
+                  <span className="mr-2">📈</span> STOCKS
+                </h3>
+                {Object.entries(marketCategories.STOCKS).map(([subcategory, symbols]) => (
+                  <div key={subcategory} className="mb-4">
+                    <h4 className="text-xs font-medium text-gray-500 dark:text-gray-500 mb-2 ml-4">{subcategory}</h4>
+                    <div className="space-y-1">
+                      {symbols.map(symbol => {
+                        const item = marketDataMap.get(symbol);
+                        return item ? <MarketCategoryItem key={symbol} {...item} /> : null;
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  {activity.price}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {activity.time}
-                </p>
+              
+              {/* INDICES Category */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center">
+                  <span className="mr-2">📊</span> INDICES & ETFS
+                </h3>
+                {Object.entries(marketCategories.INDICES).map(([subcategory, symbols]) => (
+                  <div key={subcategory} className="mb-4">
+                    <h4 className="text-xs font-medium text-gray-500 dark:text-gray-500 mb-2 ml-4">{subcategory}</h4>
+                    <div className="space-y-1">
+                      {symbols.map(symbol => {
+                        const item = marketDataMap.get(symbol);
+                        return item ? <MarketCategoryItem key={symbol} {...item} /> : null;
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* CRYPTO Category */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center">
+                  <span className="mr-2">🪙</span> CRYPTOCURRENCY
+                </h3>
+                {Object.entries(marketCategories.CRYPTO).map(([subcategory, symbols]) => (
+                  <div key={subcategory} className="mb-4">
+                    <h4 className="text-xs font-medium text-gray-500 dark:text-gray-500 mb-2 ml-4">{subcategory}</h4>
+                    <div className="space-y-1">
+                      {symbols.map(symbol => {
+                        const item = marketDataMap.get(symbol);
+                        return item ? <MarketCategoryItem key={symbol} {...item} /> : null;
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* FOREX Category */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center">
+                  <span className="mr-2">💱</span> FOREIGN EXCHANGE
+                </h3>
+                {Object.entries(marketCategories.FOREX).map(([subcategory, symbols]) => (
+                  <div key={subcategory} className="mb-4">
+                    <h4 className="text-xs font-medium text-gray-500 dark:text-gray-500 mb-2 ml-4">{subcategory}</h4>
+                    <div className="space-y-1">
+                      {symbols.map(symbol => {
+                        const item = marketDataMap.get(symbol);
+                        return item ? <MarketCategoryItem key={symbol} {...item} /> : null;
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
+          ) : (
+            <div className="text-center py-12">
+              <div className="animate-pulse">
+                <div className="text-lg mb-2 text-gray-500 dark:text-gray-400">📡 Connecting to Alpaca Markets</div>
+                <div className="text-sm text-gray-400 dark:text-gray-500">Waiting for real-time market data...</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Live data status */}
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${hasLiveData ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {hasLiveData ? (
+                <>🔴 Live from Alpaca Markets • {liveMarketData.length} symbols</>
+              ) : (
+                <>⏳ Establishing Alpaca connection...</>
+              )}
+            </p>
+          </div>
         </div>
       </div>
     </div>

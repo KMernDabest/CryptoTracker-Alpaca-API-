@@ -43,10 +43,10 @@ export const useMarketStore = create<MarketState>((set, get) => ({
 
   setMarketData: (symbol: string, data: MarketData) =>
     set((state) => {
-      const newMarketData = new Map(state.marketData);
-      newMarketData.set(symbol, data);
+      // Ultra-fast in-place update for maximum performance
+      state.marketData.set(symbol, data);
       return {
-        marketData: newMarketData,
+        marketData: state.marketData,
         lastUpdated: new Date(),
         error: null
       };
@@ -54,12 +54,12 @@ export const useMarketStore = create<MarketState>((set, get) => ({
 
   updateMultipleMarketData: (dataMap: Map<string, MarketData>) =>
     set((state) => {
-      const newMarketData = new Map(state.marketData);
+      // Ultra-fast batch update with in-place modifications
       dataMap.forEach((data, symbol) => {
-        newMarketData.set(symbol, data);
+        state.marketData.set(symbol, data);
       });
       return {
-        marketData: newMarketData,
+        marketData: state.marketData,
         lastUpdated: new Date(),
         error: null
       };

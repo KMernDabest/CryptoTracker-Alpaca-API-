@@ -11,6 +11,9 @@ import {
   EyeIcon
 } from '@heroicons/react/24/outline';
 import { useLocation } from 'react-router-dom';
+import { useMarketStore } from '../../stores/marketStore';
+import { useMarketData } from '../../hooks/useMarketData';
+import { formatCurrency, formatPercentage } from '../../utils/formatters';
 
 interface SidebarItem {
   name: string;
@@ -45,6 +48,13 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isCollapsed = false }: SidebarProps) {
+  const { marketData, isConnected } = useMarketStore();
+  useMarketData(); // Initialize market data connection
+
+  // Get real-time market data
+  const btcData = marketData.get('BTC/USD');
+  const ethData = marketData.get('ETH/USD');
+  const spyData = marketData.get('SPY'); // Using SPY ETF as S&P 500 proxy
   const location = useLocation();
 
   return (
@@ -118,29 +128,50 @@ export default function Sidebar({ isCollapsed = false }: SidebarProps) {
       {!isCollapsed && (
         <div className="px-4 py-4 border-t border-gray-200 dark:border-gray-700">
           <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2 flex items-center gap-2">
               Market Overview
+              {isConnected && (
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              )}
             </h3>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-600 dark:text-gray-400">S&P 500</span>
+                <span className="text-xs text-gray-600 dark:text-gray-400">S&P 500 (SPY)</span>
                 <div className="text-right">
-                  <div className="text-xs font-medium text-gray-900 dark:text-white">4,527.12</div>
-                  <div className="text-xs text-green-600">+0.85%</div>
+                  <div className="text-xs font-medium text-gray-900 dark:text-white">
+                    {spyData?.price ? formatCurrency(spyData.price) : 'Loading...'}
+                  </div>
+                  <div className={`text-xs ${
+                    spyData?.changePercent ? (spyData.changePercent >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-500'
+                  }`}>
+                    {spyData?.changePercent ? formatPercentage(spyData.changePercent) : '--'}
+                  </div>
                 </div>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-xs text-gray-600 dark:text-gray-400">Bitcoin</span>
                 <div className="text-right">
-                  <div className="text-xs font-medium text-gray-900 dark:text-white">$43,567</div>
-                  <div className="text-xs text-green-600">+2.34%</div>
+                  <div className="text-xs font-medium text-gray-900 dark:text-white">
+                    {btcData?.price ? formatCurrency(btcData.price) : 'Loading...'}
+                  </div>
+                  <div className={`text-xs ${
+                    btcData?.changePercent ? (btcData.changePercent >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-500'
+                  }`}>
+                    {btcData?.changePercent ? formatPercentage(btcData.changePercent) : '--'}
+                  </div>
                 </div>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-xs text-gray-600 dark:text-gray-400">Ethereum</span>
                 <div className="text-right">
-                  <div className="text-xs font-medium text-gray-900 dark:text-white">$2,687</div>
-                  <div className="text-xs text-red-600">-0.92%</div>
+                  <div className="text-xs font-medium text-gray-900 dark:text-white">
+                    {ethData?.price ? formatCurrency(ethData.price) : 'Loading...'}
+                  </div>
+                  <div className={`text-xs ${
+                    ethData?.changePercent ? (ethData.changePercent >= 0 ? 'text-green-600' : 'text-red-600') : 'text-gray-500'
+                  }`}>
+                    {ethData?.changePercent ? formatPercentage(ethData.changePercent) : '--'}
+                  </div>
                 </div>
               </div>
             </div>

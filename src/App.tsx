@@ -6,14 +6,13 @@ import { useMarketStore } from './stores/marketStore';
 import { websocketService } from './services/websocket';
 import { useMarketData } from './hooks/useMarketData';
 import Header from './components/common/Header';
-import Sidebar from './components/common/Sidebar';
+import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import AuthPage from './components/AuthPage';
 // Import page components
 import Portfolio from './pages/Portfolio';
 import Watchlist from './pages/Watchlist';
 import Markets from './pages/Markets';
-import Alerts from './pages/Alerts';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -26,15 +25,17 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex overflow-hidden">
       <Sidebar 
         isCollapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 h-full">
         <Header />
-        <main className="flex-1 overflow-y-auto">
-          {children}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-gray-900">
+          <div className="h-full">
+            {children}
+          </div>
         </main>
       </div>
     </div>
@@ -140,17 +141,6 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Watchlist />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/alerts"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Alerts />
                 </Layout>
               </ProtectedRoute>
             }

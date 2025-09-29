@@ -139,8 +139,8 @@ export function MarketTrend({ className = '' }: MarketTrendProps) {
     const priceRange = maxPrice - minPrice || 1;
 
     return (
-      <div className="relative h-64 w-full">
-        <svg className="w-full h-full" viewBox="0 0 500 200">
+      <div className="relative h-64 w-full min-w-0 overflow-hidden">
+        <svg className="w-full h-full min-w-0" viewBox="0 0 500 200" preserveAspectRatio="xMidYMid meet">
           {/* Grid lines */}
           {[0, 25, 50, 75, 100, 125, 150, 175, 200].map(y => (
             <line 
@@ -184,60 +184,60 @@ export function MarketTrend({ className = '' }: MarketTrendProps) {
         </svg>
         
         {/* X-axis labels */}
-        <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-500 px-2">
-          <span>{data[0]?.time}</span>
-          <span>{data[Math.floor(data.length / 2)]?.time}</span>
-          <span>{data[data.length - 1]?.time}</span>
+        <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-500 px-2 overflow-hidden">
+          <span className="truncate max-w-[4rem]">{data[0]?.time}</span>
+          <span className="truncate max-w-[4rem]">{data[Math.floor(data.length / 2)]?.time}</span>
+          <span className="truncate max-w-[4rem]">{data[data.length - 1]?.time}</span>
         </div>
         
         {/* Y-axis labels */}
-        <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-500 -ml-16">
-          <span>{formatCurrency(maxPrice)}</span>
-          <span>{formatCurrency((maxPrice + minPrice) / 2)}</span>
-          <span>{formatCurrency(minPrice)}</span>
+        <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-500 -ml-16 overflow-hidden">
+          <span className="truncate max-w-[4rem]">{formatCurrency(maxPrice)}</span>
+          <span className="truncate max-w-[4rem]">{formatCurrency((maxPrice + minPrice) / 2)}</span>
+          <span className="truncate max-w-[4rem]">{formatCurrency(minPrice)}</span>
         </div>
       </div>
     );
   };
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
+    <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 min-w-0 overflow-hidden ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+      <div className="flex items-center justify-between mb-6 min-w-0">
+        <div className="flex items-center space-x-3 min-w-0 overflow-hidden">
+          <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex-shrink-0">
             <ChartBarIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <div className="min-w-0 overflow-hidden">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
               Market Trend
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
               Track price movement over time
             </p>
           </div>
         </div>
         
         {/* Connection indicator */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 flex-shrink-0">
           <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500 whitespace-nowrap">
             {isConnected ? 'Live' : 'Offline'}
           </span>
         </div>
       </div>
 
       {/* Symbol selector */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <div className="flex items-center space-x-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+      <div className="flex flex-col sm:flex-row gap-4 mb-4 min-w-0">
+        <div className="flex items-center space-x-2 min-w-0">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
             Symbol:
           </label>
           <select
             value={selectedSymbol}
             onChange={(e) => setSelectedSymbol(e.target.value)}
             aria-label="Select symbol for market trend"
-            className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-0 max-w-full"
           >
             {availableSymbols.map(symbol => (
               <option key={symbol} value={symbol}>{symbol}</option>
@@ -245,16 +245,16 @@ export function MarketTrend({ className = '' }: MarketTrendProps) {
           </select>
         </div>
         
-        <div className="flex items-center space-x-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        <div className="flex items-center space-x-2 min-w-0">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
             Period:
           </label>
-          <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+          <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 overflow-x-auto">
             {timeRanges.map(({ value, label }) => (
               <button
                 key={value}
                 onClick={() => setTimeRange(value)}
-                className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${
+                className={`px-2 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap flex-shrink-0 ${
                   timeRange === value
                     ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -269,31 +269,31 @@ export function MarketTrend({ className = '' }: MarketTrendProps) {
 
       {/* Current price info */}
       {currentData && (
-        <div className="flex items-center justify-between mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-          <div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+        <div className="flex items-center justify-between mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg min-w-0 gap-4">
+          <div className="min-w-0 overflow-hidden">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white truncate">
               {formatCurrency(currentData.price)}
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
               Current price
             </p>
           </div>
           
-          <div className="text-right">
-            <div className="flex items-center justify-end space-x-1">
+          <div className="text-right flex-shrink-0 min-w-0">
+            <div className="flex items-center justify-end space-x-1 min-w-0">
               {isPositive ? (
-                <ArrowTrendingUpIcon className="h-4 w-4 text-green-500" />
+                <ArrowTrendingUpIcon className="h-4 w-4 text-green-500 flex-shrink-0" />
               ) : (
-                <ArrowTrendingDownIcon className="h-4 w-4 text-red-500" />
+                <ArrowTrendingDownIcon className="h-4 w-4 text-red-500 flex-shrink-0" />
               )}
-              <span className={`text-sm font-semibold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+              <span className={`text-sm font-semibold truncate ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
                 {isPositive ? '+' : ''}{formatCurrency(currentData.change)}
               </span>
-              <span className={`text-xs ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+              <span className={`text-xs truncate ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
                 ({formatPercentage(Math.abs(currentData.changePercent))})
               </span>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">
               {timeRange} change
             </p>
           </div>
@@ -301,7 +301,7 @@ export function MarketTrend({ className = '' }: MarketTrendProps) {
       )}
 
       {/* Chart */}
-      <div className="relative">
+      <div className="relative min-w-0 overflow-hidden">
         {isLoading ? (
           <div className="h-64 flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -322,10 +322,10 @@ export function MarketTrend({ className = '' }: MarketTrendProps) {
       {/* Chart info */}
       {trendData.length > 0 && (
         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span>Period: {timeRanges.find(r => r.value === timeRange)?.label}</span>
-            <span>{trendData.length} data points</span>
-            <span>Updated: {new Date().toLocaleTimeString()}</span>
+          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 gap-2 min-w-0">
+            <span className="truncate">Period: {timeRanges.find(r => r.value === timeRange)?.label}</span>
+            <span className="whitespace-nowrap">{trendData.length} data points</span>
+            <span className="truncate">Updated: {new Date().toLocaleTimeString()}</span>
           </div>
         </div>
       )}

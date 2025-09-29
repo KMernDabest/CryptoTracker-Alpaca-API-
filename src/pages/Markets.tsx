@@ -49,7 +49,8 @@ interface CandlestickDataPoint {
 interface SymbolOption {
   symbol: string;
   name: string;
-  type: 'stock' | 'crypto';
+  type: 'stock' | 'crypto' | 'forex' | 'index';
+  category?: string;
   currentPrice?: number;
   change?: number;
   changePercent?: number;
@@ -63,17 +64,79 @@ interface WatchlistItemProps {
 }
 
 const AVAILABLE_SYMBOLS: SymbolOption[] = [
-  { symbol: 'AAPL', name: 'Apple Inc.', type: 'stock' },
-  { symbol: 'GOOGL', name: 'Alphabet Inc.', type: 'stock' },
-  { symbol: 'MSFT', name: 'Microsoft Corporation', type: 'stock' },
-  { symbol: 'TSLA', name: 'Tesla, Inc.', type: 'stock' },
-  { symbol: 'AMZN', name: 'Amazon.com Inc.', type: 'stock' },
-  { symbol: 'META', name: 'Meta Platforms Inc.', type: 'stock' },
-  { symbol: 'NVDA', name: 'NVIDIA Corporation', type: 'stock' },
-  { symbol: 'AMD', name: 'Advanced Micro Devices', type: 'stock' },
-  { symbol: 'SPY', name: 'SPDR S&P 500 ETF', type: 'stock' },
-  { symbol: 'BTC/USD', name: 'Bitcoin', type: 'crypto' },
-  { symbol: 'ETH/USD', name: 'Ethereum', type: 'crypto' },
+  // STOCKS - Tech Giants
+  { symbol: 'AAPL', name: 'Apple Inc.', type: 'stock', category: 'Tech Giants' },
+  { symbol: 'GOOGL', name: 'Alphabet Inc.', type: 'stock', category: 'Tech Giants' },
+  { symbol: 'MSFT', name: 'Microsoft Corp.', type: 'stock', category: 'Tech Giants' },
+  { symbol: 'META', name: 'Meta Platforms Inc.', type: 'stock', category: 'Tech Giants' },
+  { symbol: 'NVDA', name: 'NVIDIA Corp.', type: 'stock', category: 'Tech Giants' },
+  { symbol: 'AMD', name: 'AMD Inc.', type: 'stock', category: 'Tech Giants' },
+  
+  // STOCKS - Growth & Media
+  { symbol: 'TSLA', name: 'Tesla Inc.', type: 'stock', category: 'Growth & Media' },
+  { symbol: 'AMZN', name: 'Amazon.com Inc.', type: 'stock', category: 'Growth & Media' },
+  { symbol: 'NFLX', name: 'Netflix Inc.', type: 'stock', category: 'Growth & Media' },
+  { symbol: 'DIS', name: 'Walt Disney Co.', type: 'stock', category: 'Growth & Media' },
+  { symbol: 'PYPL', name: 'PayPal Holdings Inc.', type: 'stock', category: 'Growth & Media' },
+  { symbol: 'ADBE', name: 'Adobe Inc.', type: 'stock', category: 'Growth & Media' },
+  
+  // STOCKS - Enterprise
+  { symbol: 'CRM', name: 'Salesforce Inc.', type: 'stock', category: 'Enterprise' },
+  { symbol: 'ORCL', name: 'Oracle Corp.', type: 'stock', category: 'Enterprise' },
+  { symbol: 'INTC', name: 'Intel Corp.', type: 'stock', category: 'Enterprise' },
+  { symbol: 'IBM', name: 'IBM Corp.', type: 'stock', category: 'Enterprise' },
+  
+  // STOCKS - Financial
+  { symbol: 'JPM', name: 'JPMorgan Chase & Co.', type: 'stock', category: 'Financial' },
+  { symbol: 'BAC', name: 'Bank of America Corp.', type: 'stock', category: 'Financial' },
+  { symbol: 'GS', name: 'Goldman Sachs Group Inc.', type: 'stock', category: 'Financial' },
+  { symbol: 'MS', name: 'Morgan Stanley', type: 'stock', category: 'Financial' },
+  { symbol: 'WFC', name: 'Wells Fargo & Co.', type: 'stock', category: 'Financial' },
+  { symbol: 'V', name: 'Visa Inc.', type: 'stock', category: 'Financial' },
+  { symbol: 'MA', name: 'Mastercard Inc.', type: 'stock', category: 'Financial' },
+  
+  // INDICES - Major ETFs
+  { symbol: 'SPY', name: 'SPDR S&P 500 ETF', type: 'index', category: 'Major ETFs' },
+  { symbol: 'QQQ', name: 'Invesco QQQ Trust', type: 'index', category: 'Major ETFs' },
+  { symbol: 'IWM', name: 'iShares Russell 2000 ETF', type: 'index', category: 'Major ETFs' },
+  
+  // INDICES - Broad Market
+  { symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', type: 'index', category: 'Broad Market' },
+  { symbol: 'VOO', name: 'Vanguard S&P 500 ETF', type: 'index', category: 'Broad Market' },
+  { symbol: 'VEA', name: 'Vanguard FTSE Developed Markets ETF', type: 'index', category: 'Broad Market' },
+  { symbol: 'VWO', name: 'Vanguard FTSE Emerging Markets ETF', type: 'index', category: 'Broad Market' },
+  
+  // CRYPTO - Major
+  { symbol: 'BTC/USD', name: 'Bitcoin', type: 'crypto', category: 'Major' },
+  { symbol: 'ETH/USD', name: 'Ethereum', type: 'crypto', category: 'Major' },
+  
+  // CRYPTO - Altcoins
+  { symbol: 'LTC/USD', name: 'Litecoin', type: 'crypto', category: 'Altcoins' },
+  { symbol: 'BCH/USD', name: 'Bitcoin Cash', type: 'crypto', category: 'Altcoins' },
+  { symbol: 'LINK/USD', name: 'Chainlink', type: 'crypto', category: 'Altcoins' },
+  { symbol: 'UNI/USD', name: 'Uniswap', type: 'crypto', category: 'Altcoins' },
+  
+  // CRYPTO - DeFi
+  { symbol: 'AAVE/USD', name: 'Aave', type: 'crypto', category: 'DeFi' },
+  { symbol: 'ALGO/USD', name: 'Algorand', type: 'crypto', category: 'DeFi' },
+  { symbol: 'DOT/USD', name: 'Polkadot', type: 'crypto', category: 'DeFi' },
+  { symbol: 'DOGE/USD', name: 'Dogecoin', type: 'crypto', category: 'DeFi' },
+  
+  // FOREX - Major Pairs
+  { symbol: 'EUR/USD', name: 'Euro / US Dollar', type: 'forex', category: 'Major Pairs' },
+  { symbol: 'GBP/USD', name: 'British Pound / US Dollar', type: 'forex', category: 'Major Pairs' },
+  { symbol: 'USD/JPY', name: 'US Dollar / Japanese Yen', type: 'forex', category: 'Major Pairs' },
+  { symbol: 'USD/CHF', name: 'US Dollar / Swiss Franc', type: 'forex', category: 'Major Pairs' },
+  
+  // FOREX - Commodity Pairs
+  { symbol: 'AUD/USD', name: 'Australian Dollar / US Dollar', type: 'forex', category: 'Commodity Pairs' },
+  { symbol: 'USD/CAD', name: 'US Dollar / Canadian Dollar', type: 'forex', category: 'Commodity Pairs' },
+  { symbol: 'NZD/USD', name: 'New Zealand Dollar / US Dollar', type: 'forex', category: 'Commodity Pairs' },
+  
+  // FOREX - Cross Pairs
+  { symbol: 'EUR/GBP', name: 'Euro / British Pound', type: 'forex', category: 'Cross Pairs' },
+  { symbol: 'EUR/JPY', name: 'Euro / Japanese Yen', type: 'forex', category: 'Cross Pairs' },
+  { symbol: 'GBP/JPY', name: 'British Pound / Japanese Yen', type: 'forex', category: 'Cross Pairs' },
 ];
 
 const TIME_RANGES = [
@@ -104,22 +167,27 @@ const WatchlistItem: React.FC<WatchlistItemProps> = ({ symbol, isSelected, onCli
   return (
     <div
       onClick={onClick}
-      className={`p-3 border rounded-lg cursor-pointer transition-all duration-200 ${bgColor}`}
+      className={`p-2 border rounded-lg cursor-pointer transition-all duration-200 ${bgColor}`}
     >
-      <div className="flex justify-between items-start mb-2">
-        <div>
+      <div className="flex justify-between items-start mb-1.5">
+        <div className="flex-1 min-w-0 pr-2">
           <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
             {symbol.symbol}
           </h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+          <p className="text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">
             {symbol.name}
           </p>
+          {symbol.category && (
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+              {symbol.category}
+            </p>
+          )}
         </div>
-        <div className="text-right">
+        <div className="text-right flex-shrink-0 ml-1">
           <div className="font-semibold text-sm text-gray-900 dark:text-white">
             {formatCurrency(price)}
           </div>
-          <div className={`text-xs font-medium flex items-center ${changeColor}`}>
+          <div className={`text-xs font-medium flex items-center justify-end ${changeColor}`} title="1 Minute Change">
             {isPositive ? (
               <ArrowUpIcon className="w-3 h-3 mr-1" />
             ) : (
@@ -134,9 +202,15 @@ const WatchlistItem: React.FC<WatchlistItemProps> = ({ symbol, isSelected, onCli
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
           symbol.type === 'crypto' 
             ? 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-300'
+            : symbol.type === 'forex'
+            ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300'
+            : symbol.type === 'index'
+            ? 'bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300'
             : 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300'
         }`}>
-          {symbol.type === 'crypto' ? 'CRYPTO' : 'STOCK'}
+          {symbol.type === 'crypto' ? 'CRYPTO' : 
+           symbol.type === 'forex' ? 'FOREX' :
+           symbol.type === 'index' ? 'INDEX' : 'STOCK'}
         </span>
         <span className="flex items-center">
           <ClockIcon className="w-3 h-3 mr-1" />
@@ -152,6 +226,7 @@ export default function Markets() {
   const [selectedTimeRange, setSelectedTimeRange] = useState('1D');
   const [candlestickData, setCandlestickData] = useState<CandlestickDataPoint[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedType, setSelectedType] = useState<'all' | 'stock' | 'crypto' | 'forex' | 'index'>('all');
   const [isLoading, setIsLoading] = useState(false);
   const { getAllMarketData, isConnected } = useMarketStore();
   
@@ -161,11 +236,13 @@ export default function Markets() {
   // Chart reference for proper cleanup
   const chartRef = useRef<any>(null);
 
-  // Filter symbols based on search
-  const filteredSymbols = AVAILABLE_SYMBOLS.filter(symbol =>
-    symbol.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    symbol.symbol.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter symbols based on search and type
+  const filteredSymbols = AVAILABLE_SYMBOLS.filter(symbol => {
+    const matchesSearch = symbol.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         symbol.symbol.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = selectedType === 'all' || symbol.type === selectedType;
+    return matchesSearch && matchesType;
+  });
 
   // Get current market data for the selected symbol
   const currentMarketData = getAllMarketData().find(data => data.symbol === selectedSymbol.symbol);
@@ -199,7 +276,8 @@ export default function Markets() {
     // Fallback to sample data
     console.log(`📊 Generating sample data for ${symbol} (${timeRange})`);
     const now = Date.now();
-    const basePrice = currentMarketData?.price || (symbol.includes('BTC') ? 110000 : symbol.includes('ETH') ? 4000 : 200);
+    const basePrice = currentMarketData?.price || (symbol.includes('BTC') ? 45000 : symbol.includes('ETH') ? 2800 : symbol === 'SPY' ? 450 : 150);
+    console.log(`Base price for ${symbol}: $${basePrice}`);
     const data: CandlestickDataPoint[] = [];
     
     let intervals = 24; // Default for 1D
@@ -253,6 +331,7 @@ export default function Markets() {
       });
     }
 
+    console.log(`✅ Generated ${data.length} data points for ${symbol}:`, data.slice(0, 3));
     return data;
   }, [currentMarketData?.price]);
 
@@ -303,15 +382,21 @@ export default function Markets() {
         borderWidth: 1,
         callbacks: {
           label: (context: any) => {
-            const point = context.raw as CandlestickDataPoint;
-            if (!point) return '';
-            return [
-              `Open: $${point.open?.toFixed(2) || 'N/A'}`,
-              `High: $${point.high?.toFixed(2) || 'N/A'}`,
-              `Low: $${point.low?.toFixed(2) || 'N/A'}`,
-              `Close: $${point.close?.toFixed(2) || 'N/A'}`,
-              `Volume: ${point.volume?.toLocaleString() || 'N/A'}`,
-            ];
+            const datasetLabel = context.dataset.label;
+            const value = context.parsed.y;
+            const dataIndex = context.dataIndex;
+            const point = candlestickData[dataIndex];
+            
+            if (datasetLabel.includes('Close')) {
+              return [
+                `${datasetLabel}: $${value.toFixed(2)}`,
+                `Open: $${point?.open?.toFixed(2) || 'N/A'}`,
+                `High: $${point?.high?.toFixed(2) || 'N/A'}`,
+                `Low: $${point?.low?.toFixed(2) || 'N/A'}`,
+                `Volume: ${point?.volume?.toLocaleString() || 'N/A'}`,
+              ];
+            }
+            return `${datasetLabel}: $${value.toFixed(2)}`;
           },
         },
       },
@@ -394,44 +479,70 @@ export default function Markets() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSymbol, selectedTimeRange]);
 
-  // Create chart data for Chart.js
-  const chartData = {
-    labels: candlestickData.map(d => new Date(d.timestamp).toLocaleString()),
-    datasets: [
-      {
-        label: `${selectedSymbol.symbol} High`,
-        data: candlestickData.map(d => d.high),
-        borderColor: 'rgb(34, 197, 94)',
-        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-        borderWidth: 2,
-        pointRadius: 2,
-        tension: 0.1,
-      },
-      {
-        label: `${selectedSymbol.symbol} Low`,
-        data: candlestickData.map(d => d.low),
-        borderColor: 'rgb(239, 68, 68)',
-        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-        borderWidth: 2,
-        pointRadius: 2,
-        tension: 0.1,
-      },
-      {
-        label: `${selectedSymbol.symbol} Close`,
-        data: candlestickData.map(d => d.close),
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        borderWidth: 3,
-        pointRadius: 3,
-        tension: 0.1,
-      },
-    ],
-  };
+  // Create chart data for Chart.js with proper candlestick visualization
+  const chartData = useMemo(() => {
+    console.log(`🎨 Creating chart data with ${candlestickData.length} points`);
+    console.log(`📊 Chart data for ${selectedSymbol.symbol}:`, candlestickData.slice(0, 3));
+    
+    if (candlestickData.length === 0) {
+      console.log('⚠️ No candlestick data available for chart');
+      return {
+        labels: [],
+        datasets: []
+      };
+    }
+
+    const labels = candlestickData.map((d, index) => {
+      const date = new Date(d.timestamp);
+      return selectedTimeRange === '1D' 
+        ? date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: `${selectedSymbol.symbol} Close Price`,
+          data: candlestickData.map(d => d.close),
+          borderColor: 'rgb(59, 130, 246)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          tension: 0.1,
+          fill: false,
+        },
+        {
+          label: `${selectedSymbol.symbol} High`,
+          data: candlestickData.map(d => d.high),
+          borderColor: 'rgb(34, 197, 94)',
+          backgroundColor: 'rgba(34, 197, 94, 0.1)',
+          borderWidth: 1,
+          pointRadius: 1,
+          borderDash: [5, 5],
+          tension: 0.1,
+          fill: false,
+        },
+        {
+          label: `${selectedSymbol.symbol} Low`,
+          data: candlestickData.map(d => d.low),
+          borderColor: 'rgb(239, 68, 68)',
+          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+          borderWidth: 1,
+          pointRadius: 1,
+          borderDash: [5, 5],
+          tension: 0.1,
+          fill: false,
+        },
+      ],
+    };
+  }, [candlestickData, selectedSymbol.symbol, selectedTimeRange]);
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Left Sidebar - Watchlist */}
-      <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+      <div className="w-96 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
         {/* Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-3">
@@ -451,7 +562,7 @@ export default function Markets() {
           </div>
           
           {/* Search */}
-          <div className="relative">
+          <div className="relative mb-3">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
@@ -461,10 +572,36 @@ export default function Markets() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
             />
           </div>
+          
+          {/* Type Filter */}
+          <div className="flex gap-1 overflow-x-auto">
+            {[
+              { key: 'all', label: 'All', color: 'gray' },
+              { key: 'stock', label: 'Stocks', color: 'blue' },
+              { key: 'index', label: 'Indices', color: 'purple' },
+              { key: 'crypto', label: 'Crypto', color: 'orange' },
+              { key: 'forex', label: 'Forex', color: 'green' }
+            ].map(({ key, label, color }) => (
+              <button
+                key={key}
+                onClick={() => setSelectedType(key as any)}
+                className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                  selectedType === key
+                    ? `bg-${color}-100 dark:bg-${color}-900/20 text-${color}-800 dark:text-${color}-300`
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Watchlist Items */}
         <div className="flex-1 overflow-y-auto p-4">
+          <div className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+            {filteredSymbols.length} symbols {selectedType !== 'all' && `(${selectedType})`}
+          </div>
           <div className="space-y-2">
             {filteredSymbols.map((symbol) => (
               <WatchlistItem
@@ -545,17 +682,26 @@ export default function Markets() {
                 </div>
               </div>
             ) : candlestickData.length > 0 ? (
-              <div className="p-6 h-full">
-                <Line 
-                  ref={chartRef}
-                  data={chartData} 
-                  options={{
-                    ...chartOptions,
-                    maintainAspectRatio: false,
-                    responsive: true,
-                  }} 
-                />
-              </div>
+              (() => {
+                console.log('🚀 Rendering chart with data:', { 
+                  symbol: selectedSymbol.symbol, 
+                  dataPoints: candlestickData.length,
+                  chartDatasets: chartData.datasets?.length 
+                });
+                return (
+                  <div className="p-6 h-full">
+                    <Line 
+                      ref={chartRef}
+                      data={chartData} 
+                      options={{
+                        ...chartOptions,
+                        maintainAspectRatio: false,
+                        responsive: true,
+                      }} 
+                    />
+                  </div>
+                );
+              })()
             ) : (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">

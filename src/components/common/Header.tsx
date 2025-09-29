@@ -1,4 +1,5 @@
 import React, { Fragment } from 'react';
+import { Link } from 'react-router-dom';
 import { Disclosure, Menu, Transition } from '@headlessui/react';
 import {
   Bars3Icon,
@@ -17,7 +18,6 @@ const navigation = [
   { name: 'Dashboard', href: '/', current: true },
   { name: 'Portfolio', href: '/portfolio', current: false },
   { name: 'Markets', href: '/markets', current: false },
-  { name: 'Alerts', href: '/alerts', current: false },
 ];
 
 function classNames(...classes: string[]) {
@@ -65,12 +65,16 @@ export default function Header() {
             <div className="flex h-16 justify-between items-center">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="flex items-center">
-                    <ChartBarIcon className="h-8 w-8 text-blue-600" />
-                    <span className="ml-2 text-xl font-bold text-gray-900 dark:text-white">
+                  <Link 
+                    to="/" 
+                    className="flex items-center hover:opacity-80 transition-opacity cursor-pointer group"
+                    title="Go to Dashboard"
+                  >
+                    <ChartBarIcon className="h-8 w-8 text-blue-600 group-hover:text-blue-700 transition-colors" />
+                    <span className="ml-2 text-xl font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                       CryptoTracker
                     </span>
-                  </div>
+                  </Link>
                 </div>
                 <div className="hidden md:block">
                   <div className="ml-10 flex items-baseline space-x-4">

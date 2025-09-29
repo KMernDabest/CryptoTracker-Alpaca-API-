@@ -52,11 +52,24 @@ export class CacheService {
     
     if (this.redis && this.isConnected) {
       const data = await this.redis.get(key);
-      return data ? JSON.parse(data) : null;
+      if (data) {
+        const parsed = JSON.parse(data);
+        // Convert timestamp string back to Date object
+        if (parsed.timestamp) {
+          parsed.timestamp = new Date(parsed.timestamp);
+        }
+        return parsed;
+      }
+      return null;
     } else {
       const cached = this.memoryCache.get(key);
       if (cached && cached.expiry > Date.now()) {
-        return JSON.parse(cached.value);
+        const parsed = JSON.parse(cached.value);
+        // Convert timestamp string back to Date object
+        if (parsed.timestamp) {
+          parsed.timestamp = new Date(parsed.timestamp);
+        }
+        return parsed;
       }
       if (cached) {
         this.memoryCache.delete(key); // Remove expired entry
